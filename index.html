@@ -8,20 +8,39 @@
     body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7fb; }
     .wrap { max-width: 980px; margin: 24px auto; padding: 16px; }
     .card { background: #fff; border: 1px solid #e7e7ef; border-radius: 16px; padding: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
-    svg { width: 100%; height: auto; display: block; }
-    .box { fill: #ffffff; stroke: #111827; stroke-width: 3; rx: 10; ry: 10; }
-    .line { stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .label { font-size: 18px; fill: #111827; dominant-baseline: middle; }
-    .hint { color:#6b7280; font-size: 14px; margin: 12px 2px 0; }
-    .hud { display:flex; gap:12px; align-items:center; margin: 0 0 12px; color:#111827; }
+
+    .hud { display:flex; gap:12px; align-items:center; margin: 0 0 12px; color:#111827; flex-wrap:wrap; }
     .pill { padding: 6px 10px; border: 1px solid #e7e7ef; border-radius: 999px; background:#fff; font-size: 14px; }
     .pill strong { font-weight: 700; }
     .statusDot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; background:#ef4444; vertical-align: -1px; }
     .statusDot.ok { background:#22c55e; }
     .statusDot.warn { background:#f59e0b; }
+
+    .main { display:flex; gap:16px; align-items:flex-start; }
+    .mapWrap { flex: 1 1 auto; min-width: 320px; }
+    .tasksPanel { width: 280px; flex: 0 0 280px; border:1px solid #e7e7ef; border-radius: 14px; padding: 12px; background:#fff; }
+    .tasksPanel h3 { margin: 0 0 8px; font-size: 16px; }
+    .tasksPanel .sub { margin: 0 0 10px; color:#6b7280; font-size: 13px; }
+    .tasksPanel ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+    .taskItem { display:flex; gap:8px; align-items:center; padding:8px; border:1px solid #eef0f7; border-radius:12px; }
+    .taskItem.done { opacity: .6; text-decoration: line-through; }
+    .box { fill: #ffffff; stroke: #111827; stroke-width: 3; rx: 10; ry: 10; }
+    .line { stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .label { font-size: 18px; fill: #111827; dominant-baseline: middle; pointer-events:none; } /* important so clicking text clicks the room */
+    svg { width: 100%; height: auto; display: block; }
+
+    .room { cursor: pointer; }
+    .room.active { fill:#fef9c3; stroke:#f59e0b; } /* highlight current task room */
+
     .remoteDot { fill: #ef4444; }
+
+    @media (max-width: 820px) {
+      .main { flex-direction: column; }
+      .tasksPanel { width: 100%; flex: 1 1 auto; }
+    }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="card">
@@ -30,54 +49,48 @@
         <div class="pill">You: <strong id="youLabel">?</strong></div>
         <div class="pill"><span id="wsDot" class="statusDot warn"></span><span id="wsLabel">Offline (local only)</span></div>
       </div>
-      <!-- Responsive SVG; edit coordinates/sizes to match your sketch more closely -->
-      <svg viewBox="0 0 900 1200" aria-label="Box diagram" id="map">
-        <!-- CONNECTORS (draw first so they appear behind boxes) -->
-        <!-- main vertical trunk -->
-        <path class="line" d="M 505 190 L 505 845" />
 
-        <!-- top-left connection (short horizontal into the trunk) -->
-        <path class="line" d="M 480 215 L 505 215" />
+      <div class="main">
+        <div class="mapWrap">
+          <svg id="map" viewBox="0 0 900 1200" aria-label="Box diagram">
+            <!-- CONNECTORS -->
+            <path class="line" d="M 505 190 L 505 845" />
+            <path class="line" d="M 480 215 L 505 215" />
+            <path class="line" d="M 510 455 L 480 455" />
+            <path class="line" d="M 505 235 L 565 235 L 565 165 L 620 165" />
+            <path class="line" d="M 505 555 L 565 555 L 565 500 L 620 500" />
+            <path class="line" d="M 505 845 L 505 900" />
 
-        <!-- left-middle connection -->
-        <path class="line" d="M 510 455 L 480 455" />
+            <!-- ROOMS (added ids/classes for tasks) -->
+            <rect id="room-frank" class="box room" x="60" y="120" width="420" height="170" />
+            <text class="label" x="80" y="205">Frank room</text>
 
-        <!-- top-right connection (step up then right, like the sketch) -->
-        <path class="line" d="M 505 235 L 565 235 L 565 165 L 620 165" />
+            <rect id="room-lois" class="box room" x="90" y="320" width="390" height="280" />
+            <text class="label" x="110" y="460">Lois room</text>
 
-        <!-- middle-right connection (small step up then right) -->
-        <path class="line" d="M 505 555 L 565 555 L 565 500 L 620 500" />
+            <rect id="room-spare" class="box room" x="620" y="115" width="250" height="190" />
+            <text class="label" x="640" y="210">Spare room</text>
 
-        <!-- bottom connection -->
-        <path class="line" d="M 505 845 L 505 900" />
+            <rect id="room-bathroom" class="box room" x="620" y="430" width="250" height="175" />
+            <text class="label" x="640" y="520">Bathroom</text>
 
-        <!-- BOXES -->
-        <!-- top-left wide -->
-        <rect class="box" x="60" y="120" width="420" height="170" />
-        <text class="label" x="80" y="205">Frank room</text>
+            <rect id="room-mumdad" class="box room" x="235" y="900" width="565" height="255" />
+            <text class="label" x="255" y="1025">Mum dad room</text>
+          </svg>
+        </div>
 
-        <!-- left-middle (slightly larger and a bit lower) -->
-        <rect class="box" x="90" y="320" width="390" height="280" />
-        <text class="label" x="110" y="460">Lois room</text>
-
-        <!-- top-right -->
-        <rect class="box" x="620" y="115" width="250" height="190" />
-        <text class="label" x="640" y="210">Spare room</text>
-
-        <!-- middle-right -->
-        <rect class="box" x="620" y="430" width="250" height="175" />
-        <text class="label" x="640" y="520">Bathroom</text>
-
-        <!-- bottom large -->
-        <rect class="box" x="235" y="900" width="565" height="255" />
-        <text class="label" x="255" y="1025">Mum dad room</text>
-      </svg>
+        <aside class="tasksPanel" id="tasksPanel">
+          <h3>Tasks</h3>
+          <p class="sub" id="tasksSub">Pick Night Guard to get tasks.</p>
+          <ul id="taskList"></ul>
+        </aside>
+      </div>
     </div>
   </div>
+
 <script>
   // --- Multiplayer (simple WebSocket sync) ---
-  // 1) Run a WebSocket server (example code in chat) on your LAN.
-  // 2) Set WS_URL to that server (same network as players).
+  // Run server on LAN and set WS_URL to your host machine IP.
   const WS_URL = "ws://192.168.1.200:8080";
 
   const svg = document.getElementById('map');
@@ -85,6 +98,9 @@
   const youLabel = document.getElementById('youLabel');
   const wsDot = document.getElementById('wsDot');
   const wsLabel = document.getElementById('wsLabel');
+
+  const tasksSub = document.getElementById('tasksSub');
+  const taskListEl = document.getElementById('taskList');
 
   // Ask player role at start
   let role = null;
@@ -111,13 +127,12 @@
     return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
   }
 
-  function placeDotForPlayer(playerId, x, y, isMine = false) {
-    // Remove existing dot for that player
+  function placeDotForPlayer(playerId, x, y) {
     const existing = dotsByPlayer.get(playerId);
     if (existing) existing.remove();
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('class', isMine ? 'remoteDot' : 'remoteDot');
+    circle.setAttribute('class', 'remoteDot');
     circle.setAttribute('cx', x);
     circle.setAttribute('cy', y);
     circle.setAttribute('r', 10);
@@ -165,7 +180,6 @@
     ws.addEventListener('open', () => {
       wsConnected = true;
       setWsStatus('online');
-      // Join handshake
       safeSend({ type: 'join', role });
     });
 
@@ -180,16 +194,15 @@
       }
 
       if (msg.type === 'state' && msg.dots) {
-        // dots: { [playerId]: {x,y} }
         for (const [pid, p] of Object.entries(msg.dots)) {
           if (!p) continue;
-          placeDotForPlayer(pid, p.x, p.y, pid === myId);
+          placeDotForPlayer(pid, p.x, p.y);
         }
         return;
       }
 
       if (msg.type === 'dot' && msg.id && msg.x != null && msg.y != null) {
-        placeDotForPlayer(msg.id, msg.x, msg.y, msg.id === myId);
+        placeDotForPlayer(msg.id, msg.x, msg.y);
         return;
       }
     });
@@ -205,26 +218,103 @@
     });
   }
 
-  // Try to connect (if no server running, it will fall back to local-only)
   connectWs();
 
-  // --- Input: only monsters can place dots ---
+  // --- TASKS (Night Guard only) ---
+  const ROOM_TASKS = [
+    { roomId: 'room-frank',    text: "Check Frank room" },
+    { roomId: 'room-lois',     text: "Check Lois room" },
+    { roomId: 'room-spare',    text: "Inspect Spare room" },
+    { roomId: 'room-bathroom', text: "Lock Bathroom" },
+    { roomId: 'room-mumdad',   text: "Secure Mum/Dad room" },
+  ];
+
+  let tasks = [];
+  let currentTaskIndex = 0;
+
+  function pickRandomTasks(count) {
+    const copy = [...ROOM_TASKS];
+    // shuffle
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy.slice(0, Math.min(count, copy.length)).map(t => ({ ...t, done: false }));
+  }
+
+  function renderTasks() {
+    taskListEl.innerHTML = "";
+    tasks.forEach((t, idx) => {
+      const li = document.createElement("li");
+      li.className = "taskItem" + (t.done ? " done" : "");
+      li.innerHTML = `<input type="checkbox" ${t.done ? "checked" : ""} disabled /> <span>${t.text}</span>`;
+      taskListEl.appendChild(li);
+    });
+
+    // highlight current target room
+    document.querySelectorAll('.room').forEach(r => r.classList.remove('active'));
+
+    const current = tasks[currentTaskIndex];
+    if (current && !current.done) {
+      const el = document.getElementById(current.roomId);
+      if (el) el.classList.add('active');
+      tasksSub.textContent = "Click the highlighted room to complete the next task.";
+    } else if (tasks.length && tasks.every(t => t.done)) {
+      tasksSub.textContent = "✅ All tasks complete!";
+    }
+  }
+
+  function startTasksIfGuard() {
+    if (role !== 'night guard') {
+      tasksSub.textContent = "Monsters place dots. Night Guards do tasks.";
+      taskListEl.innerHTML = "";
+      return;
+    }
+
+    tasks = pickRandomTasks(3);
+    currentTaskIndex = 0;
+    renderTasks();
+  }
+
+  function tryCompleteTaskByRoom(roomEl) {
+    if (role !== 'night guard') return;
+
+    const current = tasks[currentTaskIndex];
+    if (!current || current.done) return;
+
+    if (roomEl && roomEl.id === current.roomId) {
+      current.done = true;
+      // move to next incomplete task
+      while (currentTaskIndex < tasks.length && tasks[currentTaskIndex].done) {
+        currentTaskIndex++;
+      }
+      renderTasks();
+    }
+  }
+
+  startTasksIfGuard();
+
+  // --- INPUT ---
   function onPointer(evt) {
     // Prevent scrolling on touch
     if (evt.cancelable) evt.preventDefault();
 
-    if (role !== 'monster') return;
+    if (role === 'monster') {
+      const p = svgPointFromEvent(evt);
+      placeDotForPlayer(myId, p.x, p.y);
+      safeSend({ type: 'dot', x: p.x, y: p.y });
+      return;
+    }
 
-    const p = svgPointFromEvent(evt);
-
-    // Always place locally
-    placeDotForPlayer(myId, p.x, p.y, true);
-
-    // Also broadcast (if multiplayer is connected)
-    safeSend({ type: 'dot', x: p.x, y: p.y });
+    // Night guard: clicking rooms completes tasks
+    if (role === 'night guard') {
+      const target = evt.target;
+      if (target && target.classList && target.classList.contains('room')) {
+        tryCompleteTaskByRoom(target);
+      }
+    }
   }
 
-  // Pointer events work for mouse + touch + pen
   svg.addEventListener('pointerdown', onPointer, { passive: false });
 </script>
 </body>
