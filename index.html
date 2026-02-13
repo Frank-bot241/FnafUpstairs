@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diagram</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7fb; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 16px; }
+    .card { background: #fff; border: 1px solid #e7e7ef; border-radius: 16px; padding: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+    svg { width: 100%; height: auto; display: block; }
+    .box { fill: #ffffff; stroke: #111827; stroke-width: 3; rx: 10; ry: 10; }
+    .line { stroke: #111827; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .label { font-size: 18px; fill: #111827; dominant-baseline: middle; }
+    .hint { color:#6b7280; font-size: 14px; margin: 12px 2px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <!-- Responsive SVG; edit coordinates/sizes to match your sketch more closely -->
+      <svg viewBox="0 0 900 1200" aria-label="Box diagram" id="map">
+        <!-- CONNECTORS (draw first so they appear behind boxes) -->
+        <!-- main vertical trunk -->
+        <path class="line" d="M 505 190 L 505 845" />
+
+        <!-- top-left connection (short horizontal into the trunk) -->
+        <path class="line" d="M 480 215 L 505 215" />
+
+        <!-- left-middle connection -->
+        <path class="line" d="M 510 455 L 480 455" />
+
+        <!-- top-right connection (step up then right, like the sketch) -->
+        <path class="line" d="M 505 235 L 565 235 L 565 165 L 620 165" />
+
+        <!-- middle-right connection (small step up then right) -->
+        <path class="line" d="M 505 555 L 565 555 L 565 500 L 620 500" />
+
+        <!-- bottom connection -->
+        <path class="line" d="M 505 845 L 505 900" />
+
+        <!-- BOXES -->
+        <!-- top-left wide -->
+        <rect class="box" x="60" y="120" width="420" height="170" />
+        <text class="label" x="80" y="205">Frank room</text>
+
+        <!-- left-middle (slightly larger and a bit lower) -->
+        <rect class="box" x="90" y="320" width="390" height="280" />
+        <text class="label" x="110" y="460">Lois room</text>
+
+        <!-- top-right -->
+        <rect class="box" x="620" y="115" width="250" height="190" />
+        <text class="label" x="640" y="210">Spare room</text>
+
+        <!-- middle-right -->
+        <rect class="box" x="620" y="430" width="250" height="175" />
+        <text class="label" x="640" y="520">Bathroom</text>
+
+        <!-- bottom large -->
+        <rect class="box" x="235" y="900" width="565" height="255" />
+        <text class="label" x="255" y="1025">Mum dad room</text>
+      </svg>
+      <div id="status" class="hint"></div>
+    </div>
+  </div>
+<script>
+  const svg = document.getElementById('map');
+  const statusEl = document.getElementById('status');
+
+  // --- Simple "multiplayer" (two tabs/windows on the same device/browser) ---
+  // Open this page in TWO tabs. Each tab chooses a role.
+  // BroadcastChannel syncs dots + roles across tabs (same browser + same origin).
+  const channel = new BroadcastChannel('fnaf-upstairs');
+  const playerId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+  const peers = new Map(); // id -> { role, lastSeen }
+
+  function setStatus(text) {
+    if (statusEl) statusEl.textContent = text;
+  }
+
+  function updateStatus() {
+    const list = [];
+    for (const [id, info] of peers.entries()) {
+      const short = String(id).slice(0, 6);
+      list.push(`${short}:${info.role}`);
+    }
+    const me = String(playerId).slice(0, 6);
+    const base = `You are: ${role} (id ${me}).`;
+    setStatus(list.length ? `${base} Players: ${list.join(' | ')}` : `${base} Open another tab to play multiplayer.`);
+  }
+
+  // Ask player role at start
+  let role = null;
+  while (role !== 'night guard' && role !== 'monster') {
+    const r = prompt("Are you a 'night guard' or 'monster'?");
+    if (!r) continue;
+    role = r.toLowerCase().trim();
+  }
+
+  // Dot state
+  let currentDot = null;
+
+  function svgPointFromEvent(evt) {
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX;
+    pt.y = evt.clientY;
+    const ctm = svg.getScreenCTM();
+    return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+  }
+
+  function drawDotAt(x, y) {
+    // Remove existing dot if there is one
+    if (currentDot) {
+      currentDot.remove();
+      currentDot = null;
+    }
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x);
+    circle.setAttribute('cy', y);
+    circle.setAttribute('r', 10);
+    circle.setAttribute('fill', 'red');
+    svg.appendChild(circle);
+    currentDot = circle;
+  }
+
+  function spawnRedSphere(evt) {
+    // Only monsters can place dots
+    if (role !== 'monster') return;
+
+    const p = svgPointFromEvent(evt);
+    drawDotAt(p.x, p.y);
+
+    // Broadcast to other tabs
+    channel.postMessage({
+      type: 'dot',
+      from: playerId,
+      x: p.x,
+      y: p.y,
+      t: Date.now()
+    });
+  }
+
+  // Receive messages from other tabs
+  channel.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.from === playerId) return;
+
+    if (msg.type === 'join') {
+      peers.set(msg.from, { role: msg.role || 'unknown', lastSeen: Date.now() });
+      // Reply with my role so the other tab sees me too
+      channel.postMessage({ type: 'join-ack', from: playerId, role });
+      updateStatus();
+      return;
+    }
+
+    if (msg.type === 'join-ack') {
+      peers.set(msg.from, { role: msg.role || 'unknown', lastSeen: Date.now() });
+      updateStatus();
+      return;
+    }
+
+    if (msg.type === 'dot') {
+      // Everyone sees the monster's dot placement
+      drawDotAt(msg.x, msg.y);
+      return;
+    }
+  });
+
+  // Announce myself
+  channel.postMessage({ type: 'join', from: playerId, role });
+  peers.set(playerId, { role, lastSeen: Date.now() });
+  updateStatus();
+
+  // Place dot with clicks (and taps on mobile browsers that fire click)
+  svg.addEventListener('click', spawnRedSphere);
+</script>
+</body>
+</html>
